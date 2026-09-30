@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Windows;
+using System.Windows.Interop;
+using System.Windows.Media;
 using SpotifyTaskbarWidget.Core;
 
 namespace SpotifyTaskbarWidget;
@@ -14,6 +16,9 @@ public partial class App : System.Windows.Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        // The widget is a small layered window; GPU rendering would copy every frame back to system memory
+        // and keep the graphics driver loaded, which costs more than drawing it on the CPU.
+        RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
 
         instance = new Mutex(initiallyOwned: true, @"Local\SpotifyTaskbarWidget", out var first);
         if (!first)
@@ -41,11 +46,15 @@ public partial class App : System.Windows.Application
             BaseAddress = new Uri("https://lrclib.net/"),
             Timeout = TimeSpan.FromSeconds(10),
         };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("SpotifyTaskbarWidget/1.0 (https://github.com/melementi/SpotifyTaskbarWidget)");
+        var version = typeof(App).Assembly.GetName().Version!.ToString(3);
+        http.DefaultRequestHeaders.UserAgent.ParseAdd($"SpotifyTaskbarWidget/{version} (https://github.com/melementi/SpotifyTaskbarWidget)");
         var provider = new LyricsProvider(new LyricsCache(Path.Combine(dataFolder, "lyrics")), new LrclibClient(http));
         var watcher = new MediaWatcher(clock);
 
         var window = new WidgetWindow(config, clock, watcher, provider);
+        // Exit, taskkill and sign-out all ask the window to close first; only a window destroyed
+        // without being asked (its taskbar owner went away) needs the widget to start again.
+        window.Closing += (_, _) => exiting = true;
         window.Closed += (_, _) =>
         {
             if (!exiting) Relaunch();
@@ -55,11 +64,12 @@ public partial class App : System.Windows.Application
             exiting = true;
             Shutdown();
         };
-        window.Show();
+        // Showing is left to the host timer, which first checks that the widget fits and nothing is fullscreen.
+        new WindowInteropHelper(window).EnsureHandle();
         await watcher.StartAsync();
     }
 
-    // Windows destroys the widget window together with its owner when explorer restarts.
+    // Some Windows builds destroy owned windows together with the taskbar when explorer restarts.
     private void Relaunch()
     {
         exiting = true;

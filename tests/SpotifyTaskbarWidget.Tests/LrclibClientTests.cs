@@ -48,6 +48,20 @@ public class LrclibClientTests
     }
 
     [Fact]
+    public async Task Exact_lookup_rejected_as_bad_request_falls_back_to_search()
+    {
+        var episode = new TrackQuery("Long Episode", "", TimeSpan.FromHours(2));
+        var (client, handler) = Create(url => url.StartsWith("/api/get")
+            ? FakeHandler.Json("{}", HttpStatusCode.BadRequest)
+            : FakeHandler.Json("[]"));
+
+        var result = await client.FetchAsync(episode, CancellationToken.None);
+
+        Assert.Equal(LyricsStatus.NotFound, result.Status);
+        Assert.StartsWith("/api/search", handler.Requests[1]);
+    }
+
+    [Fact]
     public async Task Search_prefers_the_closest_duration_over_the_first_in_tolerance()
     {
         var query = new TrackQuery("Yellow", "Coldplay", TimeSpan.FromSeconds(268));

@@ -55,4 +55,36 @@ public class LyricTimelineTests
     {
         Assert.Equal(new LyricWindow("", "", ""), new LyricTimeline([]).At(TimeSpan.FromSeconds(1)));
     }
+
+    [Fact]
+    public void Next_change_before_the_first_line_is_the_first_line()
+    {
+        Assert.Equal(TimeSpan.FromSeconds(10), Three.NextChangeAfter(TimeSpan.FromSeconds(3)));
+    }
+
+    [Fact]
+    public void Next_change_between_lines_is_the_following_line()
+    {
+        Assert.Equal(TimeSpan.FromSeconds(30), Three.NextChangeAfter(TimeSpan.FromSeconds(20)));
+    }
+
+    [Fact]
+    public void Next_change_skips_lines_sharing_the_current_timestamp()
+    {
+        var timeline = new LyricTimeline(
+        [
+            new LyricLine(TimeSpan.FromSeconds(5), "A"),
+            new LyricLine(TimeSpan.FromSeconds(5), "B"),
+            new LyricLine(TimeSpan.FromSeconds(9), "C"),
+        ]);
+
+        Assert.Equal(TimeSpan.FromSeconds(9), timeline.NextChangeAfter(TimeSpan.FromSeconds(5)));
+    }
+
+    [Fact]
+    public void No_next_change_after_the_last_line()
+    {
+        Assert.Null(Three.NextChangeAfter(TimeSpan.FromSeconds(30)));
+        Assert.Null(new LyricTimeline([]).NextChangeAfter(TimeSpan.Zero));
+    }
 }

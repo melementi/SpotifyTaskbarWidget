@@ -17,11 +17,15 @@ public lyrics database.
 
 ## Requirements
 
-- Windows 11, with the taskbar at the bottom and the taskbar icons **centered**
-  (the default). The widget uses the empty space left of the Start button, so
-  it hides itself on a left-aligned taskbar.
+- Windows 11 (64-bit), with the taskbar at the bottom and the taskbar icons
+  **centered** (the default). The widget uses the empty space left of the
+  Start button, so it stays hidden when that space is missing: on a
+  left-aligned taskbar, or when many pinned apps, the search box or high
+  display scaling leave less than about 280 pixels free.
 - The Spotify desktop app, from either the Microsoft Store or spotify.com.
 - An internet connection for lyrics.
+- On Windows 11 "N" editions, the free Media Feature Pack (Settings → System →
+  Optional features), which provides the media controls the widget reads.
 
 ## Install
 
@@ -30,23 +34,36 @@ public lyrics database.
 2. Open **PowerShell** (not as administrator) and run:
 
    ```powershell
+   Get-Process SpotifyTaskbarWidget -ErrorAction SilentlyContinue | Stop-Process -PassThru | Wait-Process; Start-Sleep 2
+   $downloads = (New-Object -ComObject Shell.Application).NameSpace('shell:Downloads').Self.Path
+   $zip = Get-ChildItem "$downloads\SpotifyTaskbarWidget-win-x64*.zip" | Sort-Object LastWriteTime | Select-Object -Last 1
    $dir = "$env:LOCALAPPDATA\Programs\SpotifyTaskbarWidget"
-   Expand-Archive "$env:USERPROFILE\Downloads\SpotifyTaskbarWidget-win-x64.zip" $dir -Force
+   Expand-Archive $zip.FullName $dir -Force
    Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' SpotifyTaskbarWidget "`"$dir\SpotifyTaskbarWidget.exe`""
    Start-Process "$dir\SpotifyTaskbarWidget.exe"
    ```
 
-   This unpacks the widget into your user folder, makes it start when you sign
-   in, and starts it now. No administrator rights are needed. If your browser
-   saved the zip somewhere other than Downloads, change the path in the second
-   line.
+   This stops the widget if it is already running, takes the newest
+   downloaded zip from your Downloads folder (even if that folder was moved,
+   for example to OneDrive), unpacks it into your user folder, makes the widget
+   start when you sign in, and starts it now. No administrator rights are
+   needed. If your browser saved the zip somewhere else, replace the third
+   line with `$zip = Get-Item 'D:\Somewhere\SpotifyTaskbarWidget-win-x64.zip'`.
 
-3. The exe is not code-signed, so Windows may show **"Windows protected your
-   PC"** the first time. Click **More info → Run anyway**.
+3. The app is not code-signed, so Windows may show **"Windows protected your
+   PC"** the first time. Click **More info → Run anyway**. If Smart App Control
+   is on (Windows Security → App & browser control), Windows blocks unsigned
+   apps like this one and offers no way to run it.
 4. Turn off the weather widget so it does not show through underneath:
    **Settings → Personalization → Taskbar → Taskbar items → Widgets → Off**.
 
-The download is a single self-contained exe; you do not need to install .NET.
+The download contains everything the widget needs; you do not need to install
+.NET.
+
+### Update
+
+Download the new zip and run the same PowerShell commands again. They stop the
+running widget first, then replace it. Your settings and cached lyrics are kept.
 
 ## Use
 
@@ -84,12 +101,15 @@ Delete that folder to download them again.
 
 ## Uninstall
 
-Right-click the widget → **Exit**, then in PowerShell:
+In PowerShell:
 
 ```powershell
+Get-Process SpotifyTaskbarWidget -ErrorAction SilentlyContinue | Stop-Process -PassThru | Wait-Process; Start-Sleep 2
 Remove-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' SpotifyTaskbarWidget
-Remove-Item "$env:LOCALAPPDATA\Programs\SpotifyTaskbarWidget", "$env:LOCALAPPDATA\SpotifyTaskbarWidget" -Recurse
+Remove-Item "$env:LOCALAPPDATA\Programs\SpotifyTaskbarWidget", "$env:LOCALAPPDATA\SpotifyTaskbarWidget", "$env:TEMP\.net\SpotifyTaskbarWidget" -Recurse -ErrorAction SilentlyContinue
 ```
+
+The last folder only exists if you ever ran version 1.0.0.
 
 Turn the weather widget back on in Settings if you want it.
 
@@ -101,11 +121,12 @@ Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download).
 git clone https://github.com/melementi/SpotifyTaskbarWidget
 cd SpotifyTaskbarWidget
 dotnet test
-dotnet publish src/SpotifyTaskbarWidget -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o artifacts/win-x64
+dotnet publish src/SpotifyTaskbarWidget -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=none -o artifacts/win-x64
 ```
 
-The exe is written to `artifacts\win-x64\`. Close a running widget first, or
-the new one exits immediately because only one copy may run at a time.
+The widget is written to `artifacts\win-x64\`: the exe plus a few native
+libraries it loads from the same folder. Close a running widget first, or the
+new one exits immediately because only one copy may run at a time.
 
 Project layout:
 
@@ -126,6 +147,8 @@ time-stamped lyrics on LRCLIB.
 ## Limits
 
 - Spotify only, main monitor only.
+- Stays hidden on right-to-left display languages, where the taskbar is
+  mirrored.
 - Songs LRCLIB does not have show no lyrics.
 - The taskbar's right-click menu does not open over the widget's area.
 

@@ -142,10 +142,18 @@ public sealed class MediaWatcher(PositionClock clock)
     {
         if (reference is null) return null;
 
-        using var source = await reference.OpenReadAsync();
-        using var stream = source.AsStreamForRead();
-        using var memory = new MemoryStream();
-        await stream.CopyToAsync(memory);
-        return memory.ToArray();
+        try
+        {
+            using var source = await reference.OpenReadAsync();
+            using var stream = source.AsStreamForRead();
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            return memory.ToArray();
+        }
+        catch (Exception)
+        {
+            // Unreadable artwork must not also drop the title and artist.
+            return null;
+        }
     }
 }

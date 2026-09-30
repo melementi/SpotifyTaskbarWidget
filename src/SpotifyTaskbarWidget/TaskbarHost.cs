@@ -46,8 +46,10 @@ internal sealed class TaskbarHost(Window window, int maxWidth)
         var left = bar.Left + (int)(LeftMargin * scale);
         var width = Math.Min((int)(maxWidth * scale), FreeWidth(taskbar, left, scale));
         var height = bar.Bottom - bar.Top;
-        // A left-aligned taskbar, or one crowded with apps, leaves no room left of the Start button.
-        fits = width >= (int)(MinWidth * scale);
+        // A left-aligned taskbar, or one crowded with apps, leaves no room left of the Start button. A mirrored
+        // (right-to-left) taskbar has the clock and tray on the left, which the widget must not cover.
+        var mirrored = (GetWindowLongPtr(taskbar, GWL_EXSTYLE).ToInt64() & WS_EX_LAYOUTRTL) != 0;
+        fits = !mirrored && width >= (int)(MinWidth * scale);
 
         GetWindowRect(hwnd, out var current);
         var moved = current.Left != left || current.Top != bar.Top || current.Right - current.Left != width || current.Bottom - current.Top != height;
@@ -99,6 +101,10 @@ internal sealed class TaskbarHost(Window window, int maxWidth)
 
         var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
         GetMonitorInfo(monitor, ref info);
+        // An auto-hiding taskbar reserves no space at the bottom, so maximized windows reach it too.
+        var autoHide = info.rcWork.Bottom == info.rcMonitor.Bottom;
+        if (autoHide && IsZoomed(foreground)) return false;
+
         GetWindowRect(foreground, out var rect);
         return rect.Left <= info.rcMonitor.Left
             && rect.Top <= info.rcMonitor.Top

@@ -151,4 +151,61 @@ public class PositionClockTests
 
         Assert.Equal(Seconds(20), clock.Now(T0 + Seconds(5)));
     }
+
+    [Fact]
+    public void Until_is_the_wall_clock_wait_to_reach_a_position()
+    {
+        var clock = new PositionClock(TimeSpan.Zero);
+        clock.SetPlayback(true, 1.0, T0);
+        clock.SyncTimeline(Seconds(60), T0, Length);
+
+        Assert.Equal(Seconds(5), clock.Until(Seconds(70), T0 + Seconds(5)));
+    }
+
+    [Fact]
+    public void Until_accounts_for_rate_and_offset()
+    {
+        var clock = new PositionClock(TimeSpan.FromSeconds(1));
+        clock.SetPlayback(true, 2.0, T0);
+        clock.SyncTimeline(Seconds(10), T0, Length);
+
+        Assert.Equal(Seconds(4.5), clock.Until(Seconds(20), T0));
+    }
+
+    [Fact]
+    public void Until_a_passed_position_is_zero()
+    {
+        var clock = new PositionClock(TimeSpan.Zero);
+        clock.SetPlayback(true, 1.0, T0);
+        clock.SyncTimeline(Seconds(60), T0, Length);
+
+        Assert.Equal(TimeSpan.Zero, clock.Until(Seconds(30), T0));
+    }
+
+    [Fact]
+    public void Until_is_null_while_paused()
+    {
+        var clock = new PositionClock(TimeSpan.Zero);
+        clock.SyncTimeline(Seconds(60), T0, Length);
+
+        Assert.Null(clock.Until(Seconds(70), T0));
+    }
+
+    [Fact]
+    public void Changed_is_raised_only_when_the_position_model_changes()
+    {
+        var clock = new PositionClock(TimeSpan.Zero);
+        var raised = 0;
+        clock.Changed += () => raised++;
+
+        clock.SetPlayback(true, 1.0, T0);
+        clock.SetPlayback(true, 1.0, T0 + Seconds(1));
+        clock.SyncTimeline(Seconds(60), T0, Length);
+        clock.SyncTimeline(Seconds(60), T0, Length);
+        clock.Reset(T0 - Seconds(1));
+        clock.Reset(T0 + Seconds(1));
+
+        Assert.Equal(3, raised);
+    }
 }
+

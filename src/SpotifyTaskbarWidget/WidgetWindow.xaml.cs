@@ -17,10 +17,14 @@ public partial class WidgetWindow : Window
     // Spotify raises several events per track change, and the first can still carry the old duration.
     private static readonly TimeSpan LookupDelay = TimeSpan.FromMilliseconds(400);
 
+    // Lands a tick just after a line's timestamp, so rounding never shows the old line again.
+    private static readonly TimeSpan LineMargin = TimeSpan.FromMilliseconds(15);
+
     private readonly PositionClock clock;
     private readonly LyricsProvider lyrics;
     private readonly TaskbarHost host;
-    private readonly DispatcherTimer lyricTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
+
+    private readonly DispatcherTimer lyricTimer = new();
     private readonly DispatcherTimer hostTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
 
     private LyricTimeline? timeline;
@@ -49,6 +53,7 @@ public partial class WidgetWindow : Window
             ApplyTheme();
         };
         lyricTimer.Tick += (_, _) => ShowLyrics();
+        clock.Changed += () => Dispatcher.InvokeAsync(ShowLyrics);
         watcher.TrackChanged += track => Dispatcher.InvokeAsync(() => ShowTrack(track));
         MouseLeftButtonUp += (_, _) => OpenSpotify();
 
@@ -58,7 +63,6 @@ public partial class WidgetWindow : Window
 
         ShowTrack(null);
         hostTimer.Start();
-        lyricTimer.Start();
     }
 
     private void ShowTrack(TrackSnapshot? track)
@@ -67,6 +71,7 @@ public partial class WidgetWindow : Window
         {
             TitleText.Text = "Spotify not playing";
             ArtistText.Text = "";
+            ArtistText.Visibility = Visibility.Collapsed;
             ArtBrush.ImageSource = null;
             lyricsKey = "";
             lookup?.Cancel();
@@ -76,6 +81,7 @@ public partial class WidgetWindow : Window
 
         TitleText.Text = track.Title;
         ArtistText.Text = track.Artist;
+        ArtistText.Visibility = Visibility.Visible;
 
         var key = $"{track.Artist}|{track.Title}|{Math.Round(track.Duration.TotalSeconds)}";
         if (track.Thumbnail is not null || key != lyricsKey) ArtBrush.ImageSource = ToImage(track.Thumbnail);
@@ -128,9 +134,11 @@ public partial class WidgetWindow : Window
 
     private void ShowLyrics()
     {
-        var window = timeline is null
-            ? new LyricWindow("", message, "")
-            : timeline.At(clock.Now(DateTimeOffset.UtcNow));
+        var now = DateTimeOffset.UtcNow;
+        var position = clock.Now(now);
+        ScheduleNextLine(position, now);
+
+        var window = timeline is null ? new LyricWindow("", message, "") : timeline.At(position);
         if (window == shown) return;
 
         var lineChanged = window.Current != shown.Current;
@@ -141,6 +149,15 @@ public partial class WidgetWindow : Window
 
         if (lineChanged)
             LyricsPanel.BeginAnimation(OpacityProperty, new DoubleAnimation(0.3, 1, TimeSpan.FromMilliseconds(180)));
+    }
+
+    private void ScheduleNextLine(TimeSpan position, DateTimeOffset now)
+    {
+        lyricTimer.Stop();
+        // While paused nothing moves; the clock's Changed event wakes the widget on resume or seek.
+        if (timeline?.NextChangeAfter(position) is not { } next || clock.Until(next, now) is not { } wait) return;
+        lyricTimer.Interval = wait + LineMargin;
+        lyricTimer.Start();
     }
 
     private static void OpenSpotify()

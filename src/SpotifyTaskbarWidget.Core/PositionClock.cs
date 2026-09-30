@@ -10,6 +10,8 @@ public sealed class PositionClock(TimeSpan offset)
     private bool playing;
     private double rate = 1.0;
 
+    public event Action? Changed;
+
     public void SetPlayback(bool playing, double rate, DateTimeOffset now)
     {
         lock (gate)
@@ -20,6 +22,7 @@ public sealed class PositionClock(TimeSpan offset)
             this.playing = playing;
             this.rate = rate;
         }
+        Changed?.Invoke();
     }
 
     public void SyncTimeline(TimeSpan position, DateTimeOffset reportedAt, TimeSpan duration)
@@ -32,6 +35,7 @@ public sealed class PositionClock(TimeSpan offset)
             this.position = position;
             this.reportedAt = reportedAt;
         }
+        Changed?.Invoke();
     }
 
     public void Reset(DateTimeOffset changedAt)
@@ -44,15 +48,28 @@ public sealed class PositionClock(TimeSpan offset)
             duration = TimeSpan.Zero;
             reportedAt = changedAt;
         }
+        Changed?.Invoke();
     }
 
     public TimeSpan Now(DateTimeOffset now)
     {
+        lock (gate) return Shifted(now);
+    }
+
+    public TimeSpan? Until(TimeSpan target, DateTimeOffset now)
+    {
         lock (gate)
         {
-            var shifted = RawAt(now) + offset;
-            return shifted < TimeSpan.Zero ? TimeSpan.Zero : shifted;
+            if (!playing || rate <= 0) return null;
+            var remaining = target - Shifted(now);
+            return remaining > TimeSpan.Zero ? remaining / rate : TimeSpan.Zero;
         }
+    }
+
+    private TimeSpan Shifted(DateTimeOffset now)
+    {
+        var shifted = RawAt(now) + offset;
+        return shifted < TimeSpan.Zero ? TimeSpan.Zero : shifted;
     }
 
     private TimeSpan RawAt(DateTimeOffset now)

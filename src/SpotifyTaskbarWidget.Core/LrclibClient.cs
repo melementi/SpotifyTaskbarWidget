@@ -55,7 +55,9 @@ public sealed class LrclibClient(HttpClient http)
         var url = $"api/get?track_name={Escape(query.Title)}&artist_name={Escape(query.Artist)}&duration={seconds}";
 
         using var response = await http.GetAsync(url, ct);
-        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        // LRCLIB answers 400 instead of 404 for inputs it will not match exactly, such as an empty artist
+        // or an episode longer than an hour; the search can still find those.
+        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.BadRequest) return null;
         response.EnsureSuccessStatusCode();
 
         var track = await response.Content.ReadFromJsonAsync<Track>(Json, ct);

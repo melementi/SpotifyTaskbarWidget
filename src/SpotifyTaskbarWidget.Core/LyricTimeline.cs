@@ -10,6 +10,12 @@ public sealed class LyricTimeline(IReadOnlyList<LyricLine> lines)
         return new LyricWindow(TextAt(index - 1), TextAt(index), TextAt(index + 1));
     }
 
+    public TimeSpan? NextChangeAfter(TimeSpan position)
+    {
+        var next = IndexAt(position) + 1;
+        return next < lines.Count ? lines[next].Time : null;
+    }
+
     private int IndexAt(TimeSpan position)
     {
         int low = 0, high = lines.Count - 1, found = -1;
