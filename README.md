@@ -1,5 +1,9 @@
 # Spotify Taskbar Widget
 
+![The widget on the Windows 11 taskbar, left of the Start button](docs/screenshot.png)
+
+*Shown with placeholder song and lyric text.*
+
 A small Windows 11 widget that sits at the left end of the taskbar, where the
 weather widget normally is, and shows:
 
