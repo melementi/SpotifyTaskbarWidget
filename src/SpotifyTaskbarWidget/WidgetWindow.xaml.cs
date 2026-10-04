@@ -50,7 +50,6 @@ public partial class WidgetWindow : Window
         hostTimer.Tick += (_, _) =>
         {
             host.Update();
-            ApplyTheme();
         };
         lyricTimer.Tick += (_, _) => ShowLyrics();
         clock.Changed += () => Dispatcher.InvokeAsync(ShowLyrics);
@@ -60,6 +59,8 @@ public partial class WidgetWindow : Window
         var exit = new MenuItem { Header = "Exit" };
         exit.Click += (_, _) => ExitRequested?.Invoke();
         ContextMenu = new ContextMenu { Items = { exit } };
+
+        SystemEvents.UserPreferenceChanged += (_, _) => Dispatcher.InvokeAsync(ApplyTheme);
 
         ShowTrack(null);
         hostTimer.Start();

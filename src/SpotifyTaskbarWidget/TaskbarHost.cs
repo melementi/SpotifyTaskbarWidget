@@ -11,6 +11,7 @@ internal sealed class TaskbarHost(Window window, int maxWidth)
     private const int LeftMargin = 12;
     private const int MinWidth = 260;
 
+    private readonly StringBuilder classNameBuffer = new(64);
     private IntPtr hwnd;
     private bool fits = true;
 
@@ -91,10 +92,10 @@ internal sealed class TaskbarHost(Window window, int maxWidth)
         var foreground = GetForegroundWindow();
         if (foreground == IntPtr.Zero || foreground == hwnd || foreground == taskbar) return false;
 
-        var name = new StringBuilder(64);
-        GetClassName(foreground, name, name.Capacity);
+        GetClassName(foreground, classNameBuffer, classNameBuffer.Capacity);
+        var name = classNameBuffer.ToString();
         // The desktop and Task View span the whole monitor but keep the taskbar visible.
-        if (name.ToString() is "Progman" or "WorkerW" or "XamlExplorerHostIslandWindow") return false;
+        if (name is "Progman" or "WorkerW" or "XamlExplorerHostIslandWindow") return false;
 
         var monitor = MonitorFromWindow(foreground, MONITOR_DEFAULTTONEAREST);
         if (monitor != MonitorFromWindow(taskbar, MONITOR_DEFAULTTONEAREST)) return false;
