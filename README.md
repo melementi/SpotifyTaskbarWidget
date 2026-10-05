@@ -1,6 +1,6 @@
 # Spotify Taskbar Widget
 
-![The widget on the Windows 11 taskbar, left of the Start button](docs/screenshot.png)
+<img width="998" height="165" alt="screenshot" src="https://github.com/user-attachments/assets/dabdaf85-e0ae-44d7-98dc-75e8a667f86e" />
 
 - Displays current song bottom left on task bar with lyrics. 
 - Turn off widgets in task bar settings before install.
