@@ -76,9 +76,11 @@ export class LyricTimeline {
     }
 }
 
+const DASH_SEPARATOR = /\s+[-–—]\s+/;
+
 /** Drops " - Remastered 2011" style suffixes and bracketed notes such as "(feat. X)". */
 export function cleanTitle(title) {
-    const dash = title.indexOf(' - ');
+    const dash = title.search(DASH_SEPARATOR);
     const head = dash > 0 ? title.slice(0, dash) : title;
     const cleaned = head.replace(BRACKETED, '').trim();
     return cleaned.length === 0 ? title : cleaned;

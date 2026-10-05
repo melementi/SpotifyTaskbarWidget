@@ -5,7 +5,7 @@ import GLib from 'gi://GLib';
 import Soup from 'gi://Soup?version=3.0';
 
 import {cacheKeyText} from './lrclib.js';
-import {artworkUrls} from './metadata.js';
+import {ArtworkCache, artworkUrls} from './metadata.js';
 
 Gio._promisify(Soup.Session.prototype, 'send_and_read_async');
 Gio._promisify(Gio.File.prototype, 'load_contents_async');
@@ -85,6 +85,8 @@ export class LyricsCache {
     }
 }
 
+const artworkCache = new ArtworkCache(30);
+
 /**
  * Downloads a cover into memory. A Gio.BytesIcon is never kept in the shell's texture cache, unlike an icon
  * loaded from a file, so covers of songs played long ago do not pile up in memory.
@@ -92,13 +94,22 @@ export class LyricsCache {
  * @returns {Promise<Gio.Icon | null>}
  */
 export async function loadArtwork(http, url) {
+    if (!url)
+        return null;
+    const cached = artworkCache.get(url);
+    if (cached)
+        return cached;
+
     for (const candidate of artworkUrls(url)) {
         try {
             const bytes = candidate.startsWith('file://')
                 ? new GLib.Bytes((await Gio.File.new_for_uri(candidate).load_contents_async(null))[0])
                 : await http.bytes(candidate);
-            if (bytes && bytes.get_size() > 0)
-                return Gio.BytesIcon.new(bytes);
+            if (bytes && bytes.get_size() > 0) {
+                const icon = Gio.BytesIcon.new(bytes);
+                artworkCache.put(url, icon);
+                return icon;
+            }
         } catch {
             // Try the next copy; without any, the panel shows a generic music icon.
         }

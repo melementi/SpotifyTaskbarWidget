@@ -6,10 +6,12 @@ UUID=spotify-top-bar-lyrics@melementi.github.io
 cd "$(dirname "$0")"
 
 mkdir -p dist
+glib-compile-schemas extension/schemas
 gnome-extensions pack extension --force --out-dir=dist --extra-source=lib
 gnome-extensions install --force "dist/$UUID.shell-extension.zip"
 
 if gnome-extensions enable "$UUID" 2>/dev/null; then
+    gdbus call --session --dest org.gnome.Shell.Extensions --object-path /org/gnome/Shell/Extensions --method org.gnome.Shell.Extensions.ReloadExtension "$UUID" >/dev/null 2>&1 || true
     echo "Installed and enabled. If this replaced an older version, log out and back in to load the new one."
     exit 0
 fi

@@ -182,7 +182,9 @@ export class NowPlaying extends EventEmitter {
         if (!track) {
             this._songKey = '';
             this._lyricsKey = '';
-            this._loadArt('');
+            this._artUrl = '';
+            this._artGeneration++;
+            this.art = null;
             this._cancelLookup();
             this._setLyrics(null, '');
             this.emit('track-changed');

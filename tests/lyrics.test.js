@@ -104,9 +104,12 @@ describe('LyricTimeline', () => {
 describe('cleanTitle and primaryArtist', () => {
     for (const [title, expected] of [
         ['Yellow - Remastered 2011', 'Yellow'],
+        ['Song – Remastered 2020', 'Song'],
+        ['Song — Live at Wembley', 'Song'],
         ['Song (feat. Someone)', 'Song'],
         ['Song [Live]', 'Song'],
         ['Song (Live) - 2019 Mix', 'Song'],
+        ['Song (Live) – 2024 Mix', 'Song'],
         ['Song', 'Song'],
         ['(Intro)', '(Intro)'],
     ]) {

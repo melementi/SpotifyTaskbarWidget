@@ -160,4 +160,22 @@ describe('LyricsProvider', () => {
     test('the cache key ignores case and surrounding spaces and rounds the length', () => {
         assert.equal(cacheKeyText({title: ' Yellow ', artist: 'COLDPLAY', durationMs: 266_600}), 'coldplay|yellow|267');
     });
+
+    test('in-memory cache avoids repeated underlying cache reads', async () => {
+        let cacheReads = 0;
+        const underlying = {
+            get: async () => {
+                cacheReads++;
+                return {status: 'synced', syncedLyrics: '[00:01.00] Line'};
+            },
+            put: () => {},
+        };
+        const provider = new LyricsProvider(underlying, create(() => ok(hit)).client);
+        await provider.get(query);
+        assert.equal(cacheReads, 1);
+
+        const second = await provider.get(query);
+        assert.equal(second.status, 'synced');
+        assert.equal(cacheReads, 1);
+    });
 });

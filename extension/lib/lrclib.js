@@ -74,6 +74,8 @@ export class LrclibClient {
     }
 }
 
+const MAX_MEMORY_ENTRIES = 50;
+
 export class LyricsProvider {
     /**
      * @param {{get(query: TrackQuery): Promise<LyricsResult | null>, put(query: TrackQuery, result: LyricsResult): void}} cache
@@ -83,24 +85,42 @@ export class LyricsProvider {
         this._cache = cache;
         this._client = client;
         this._notFound = new Set();
+        this._memory = new Map();
     }
 
     /** @returns {Promise<LyricsResult>} */
     async get(query) {
-        const cached = await this._cache.get(query);
-        if (cached)
-            return cached;
-
         const key = cacheKeyText(query);
+        const inMemory = this._memory.get(key);
+        if (inMemory)
+            return inMemory;
+
         if (this._notFound.has(key))
             return {status: 'notFound'};
 
+        const cached = await this._cache.get(query);
+        if (cached) {
+            this._setMemory(key, cached);
+            return cached;
+        }
+
         const result = await this._client.fetch(query);
-        if (result.status === 'synced' || result.status === 'instrumental')
+        if (result.status === 'synced' || result.status === 'instrumental') {
+            this._setMemory(key, result);
             this._cache.put(query, result);
-        else if (result.status === 'notFound')
+        } else if (result.status === 'notFound') {
             this._notFound.add(key);
+        }
         return result;
+    }
+
+    _setMemory(key, result) {
+        this._memory.delete(key);
+        this._memory.set(key, result);
+        if (this._memory.size > MAX_MEMORY_ENTRIES) {
+            const oldest = this._memory.keys().next().value;
+            this._memory.delete(oldest);
+        }
     }
 }
 

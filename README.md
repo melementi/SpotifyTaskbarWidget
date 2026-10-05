@@ -21,8 +21,8 @@ Click it for the artist and album, previous / play-pause / next buttons, **Open 
 
 ## Requirements
 
-- Ubuntu 23.10 or newer with the standard Ubuntu desktop, or any Linux desktop running GNOME Shell 45 to 49.
-  Ubuntu 24.04 LTS (GNOME 46), 24.10, 25.04 and 25.10 all qualify. Ubuntu 22.04 (GNOME 42) is too old.
+- Ubuntu 23.10 or newer with the standard Ubuntu desktop, or any Linux desktop running GNOME Shell 45 to 51.
+  Ubuntu 24.04 LTS (GNOME 46), 24.10, 25.04, 25.10 and 26.04 (GNOME 50) all qualify. Ubuntu 22.04 (GNOME 42) is too old.
 - The Spotify desktop app, from the App Center (Snap), Flathub or Spotify's own `.deb` repository.
 - An internet connection for lyrics and covers.
 

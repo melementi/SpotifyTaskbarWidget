@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {describe, test} from 'node:test';
 
-import {artworkUrls, trackFromMetadata} from '../extension/lib/metadata.js';
+import {ArtworkCache, artworkUrls, trackFromMetadata} from '../extension/lib/metadata.js';
 
 describe('trackFromMetadata', () => {
     test('reads Spotify metadata', () => {
@@ -50,5 +50,33 @@ describe('artworkUrls', () => {
         assert.deepEqual(artworkUrls('file:///tmp/cover.png'), ['file:///tmp/cover.png']);
         assert.deepEqual(artworkUrls('data:image/png;base64,AAAA'), []);
         assert.deepEqual(artworkUrls(''), []);
+    });
+});
+
+describe('ArtworkCache', () => {
+    test('stores and retrieves cached items', () => {
+        const cache = new ArtworkCache(3);
+        const icon1 = {id: 1};
+        cache.put('https://url/1', icon1);
+        assert.equal(cache.get('https://url/1'), icon1);
+        assert.equal(cache.get('https://url/2'), null);
+    });
+
+    test('evicts least recently used item when capacity is exceeded', () => {
+        const cache = new ArtworkCache(2);
+        cache.put('url1', {id: 1});
+        cache.put('url2', {id: 2});
+        assert.deepEqual(cache.get('url1'), {id: 1});
+        cache.put('url3', {id: 3});
+        assert.deepEqual(cache.get('url1'), {id: 1});
+        assert.deepEqual(cache.get('url3'), {id: 3});
+        assert.equal(cache.get('url2'), null);
+    });
+
+    test('clearing cache removes all items', () => {
+        const cache = new ArtworkCache(2);
+        cache.put('url1', {id: 1});
+        cache.clear();
+        assert.equal(cache.get('url1'), null);
     });
 });

@@ -45,3 +45,36 @@ export function artworkUrls(url) {
 function text(value) {
     return typeof value === 'string' ? value : '';
 }
+
+/** In-memory LRU cache for downloaded artwork icons or bytes. */
+export class ArtworkCache {
+    constructor(maxEntries = 30) {
+        this._maxEntries = maxEntries;
+        this._cache = new Map();
+    }
+
+    get(url) {
+        if (!this._cache.has(url))
+            return null;
+        const item = this._cache.get(url);
+        this._cache.delete(url);
+        this._cache.set(url, item);
+        return item;
+    }
+
+    put(url, item) {
+        if (!url || !item)
+            return;
+        this._cache.delete(url);
+        this._cache.set(url, item);
+        if (this._cache.size > this._maxEntries) {
+            const oldest = this._cache.keys().next().value;
+            this._cache.delete(oldest);
+        }
+    }
+
+    clear() {
+        this._cache.clear();
+    }
+}
+
