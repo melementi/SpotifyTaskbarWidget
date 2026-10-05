@@ -28,31 +28,85 @@ Click it for the artist and album, previous / play-pause / next buttons, **Open 
 
 ## Install
 
-1. Download this branch: on GitHub choose **Code → Download ZIP** while viewing the
-   `Ubuntu-Gnome-top-bar-version` branch, and unzip it. Or with git:
+The extension installs for your user only. No administrator rights are needed, and nothing outside your home
+folder is changed.
+
+### Before you start
+
+1. Check your GNOME version. Open a terminal (**Ctrl + Alt + T**) and run:
 
    ```sh
-   git clone -b Ubuntu-Gnome-top-bar-version https://github.com/melementi/SpotifyTaskbarWidget
+   gnome-shell --version
    ```
 
-2. In a terminal, in that folder, run:
+   It must print `GNOME Shell 45` or newer, up to `51`.
+
+2. Make sure the two tools the installer uses are present. Both come with the standard Ubuntu desktop, so on
+   Ubuntu this step can usually be skipped:
+
+   ```sh
+   gnome-extensions version && glib-compile-schemas --version
+   ```
+
+   If either is missing, install it: on Ubuntu / Debian `sudo apt install gnome-shell libglib2.0-bin`, on
+   Fedora `sudo dnf install gnome-shell glib2`, on Arch `sudo pacman -S gnome-shell glib2`.
+
+### Install steps
+
+1. Download this branch (not `main`, which is the Windows version). Either:
+
+   - with git (install it first with `sudo apt install git` if needed):
+
+     ```sh
+     git clone -b Ubuntu-Gnome-top-bar-version https://github.com/melementi/SpotifyTaskbarWidget
+     cd SpotifyTaskbarWidget
+     ```
+
+   - or without git: on GitHub switch the branch selector to `Ubuntu-Gnome-top-bar-version`, choose
+     **Code → Download ZIP**, unzip it, then open a terminal in the unzipped folder.
+
+2. Run the installer from that folder:
 
    ```sh
    sh install.sh
    ```
 
-   This builds the extension, installs it into `~/.local/share/gnome-shell/extensions` and turns it on.
-   No administrator rights are needed.
+   It compiles the settings schema, packs the extension into `dist/`, installs it into
+   `~/.local/share/gnome-shell/extensions/spotify-top-bar-lyrics@melementi.github.io` and turns it on.
 
-3. **Log out and back in.** GNOME only loads newly installed extensions at login.
+3. **Log out and back in.** On Wayland (the Ubuntu default) GNOME only loads newly installed extensions at
+   login. The installer has already set the extension to start at that login.
 
-Start Spotify and play a song; it appears at the left of the top bar, next to the workspace indicator. The item
-hides itself whenever Spotify is closed or has nothing loaded.
+4. Start Spotify and play a song. The cover, title and current lyric line appear at the left of the top bar,
+   next to the workspace indicator. The item hides itself whenever Spotify is closed or has nothing loaded.
+
+### Check that it is running
+
+After logging back in, run:
+
+```sh
+gnome-extensions info spotify-top-bar-lyrics@melementi.github.io
+```
+
+The output should show `Enabled: Yes` and `State: ACTIVE`. You can also see and toggle it in the **Extensions**
+app.
+
+### If it does not appear
+
+- `State: INACTIVE` or `Enabled: No`: turn it on with
+  `gnome-extensions enable spotify-top-bar-lyrics@melementi.github.io`, or with the switch in the **Extensions**
+  app.
+- `State: OUT OF DATE`: your GNOME version is outside 45 to 51, which this extension does not support.
+- `State: ERROR`: check the log with `journalctl -b -o cat /usr/bin/gnome-shell | grep -i spotify` and open an
+  issue with what it shows.
+- `Extension ... doesn't exist`: you have not logged out and back in since installing.
+- Nothing in the top bar while the extension is active: make sure a song is loaded in the Spotify desktop app
+  (the web player is not supported).
 
 ### Update
 
-Download the new version and run `sh install.sh` again, then log out and back in. Your settings and cached
-lyrics are kept.
+Get the new version (`git pull` in the cloned folder, or download the ZIP again) and run `sh install.sh` again,
+then log out and back in. Your settings and cached lyrics are kept.
 
 ## Settings
 
