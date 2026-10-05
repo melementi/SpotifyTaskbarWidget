@@ -2,30 +2,11 @@
 
 ![The widget on the Windows 11 taskbar, left of the Start button](docs/screenshot.png)
 
-*Shown with placeholder song and lyric text.*
-
-A small Windows 11 widget that sits at the left end of the taskbar, where the
-weather widget normally is, and shows:
-
-- the album art, title and artist of the song Spotify is playing
-- the song's lyrics, synced to the music: the previous line, the current line
-  (highlighted) and the next line
-
-It needs no Spotify login and no API key. The song comes from Windows' own
-media controls, and the lyrics come from [LRCLIB](https://lrclib.net), a free
-public lyrics database.
-
-## Requirements
-
-- Windows 11 (64-bit), with the taskbar at the bottom and the taskbar icons
-  **centered** (the default). The widget uses the empty space left of the
-  Start button, so it stays hidden when that space is missing: on a
-  left-aligned taskbar, or when many pinned apps, the search box or high
-  display scaling leave less than about 280 pixels free.
-- The Spotify desktop app, from either the Microsoft Store or spotify.com.
-- An internet connection for lyrics.
-- On Windows 11 "N" editions, the free Media Feature Pack (Settings → System →
-  Optional features), which provides the media controls the widget reads.
+- Displays current song bottom left on task bar with lyrics. 
+- Turn off widgets in task bar settings before install.
+- installing the Windows Installer (https://github.com/melementi/SpotifyTaskbarWidget/releases/tag/v1.1.1)
+and running it should work, if it dosnt follow the stepts below.
+- its performance optimized, dosnt add any resource load on cpu, and dosnt require any maintance after innitial install. plug and play.
 
 ## Install
 
