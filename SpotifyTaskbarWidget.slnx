@@ -1,9 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/SpotifyTaskbarWidget.Core/SpotifyTaskbarWidget.Core.csproj" />
-    <Project Path="src/SpotifyTaskbarWidget/SpotifyTaskbarWidget.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/SpotifyTaskbarWidget.Tests/SpotifyTaskbarWidget.Tests.csproj" />
-  </Folder>
-</Solution>

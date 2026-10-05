@@ -1,0 +1,9 @@
+{
+  "name": "spotify-top-bar-lyrics",
+  "private": true,
+  "type": "module",
+  "description": "GNOME Shell extension showing Spotify's song and current lyric line in the top bar. Node is only used to run the tests.",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  }
+}

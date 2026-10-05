@@ -1,0 +1,35 @@
+.spotify-lyrics-box {
+  spacing: 8px;
+}
+
+.spotify-lyrics-cover {
+  icon-size: 20px;
+}
+
+.spotify-lyrics-title {
+  font-weight: bold;
+}
+
+.spotify-lyrics-line {
+  font-weight: normal;
+  margin-left: 6px;
+}
+
+.spotify-lyrics-controls {
+  spacing: 12px;
+  padding: 4px 0;
+}
+
+.spotify-lyrics-control-button {
+  padding: 8px;
+  border-radius: 99px;
+}
+
+.spotify-lyrics-control-button:hover,
+.spotify-lyrics-control-button:focus {
+  background-color: rgba(128, 128, 128, 0.2);
+}
+
+.spotify-lyrics-control-button StIcon {
+  icon-size: 16px;
+}

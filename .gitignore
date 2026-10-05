@@ -1,6 +1,2 @@
-bin/
-obj/
-publish/
-artifacts/
-.vs/
-*.user
+dist/
+node_modules/

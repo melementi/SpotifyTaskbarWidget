@@ -1,0 +1,10 @@
+{
+  "uuid": "spotify-top-bar-lyrics@melementi.github.io",
+  "name": "Spotify Top Bar Lyrics",
+  "description": "Shows the cover and title of the song Spotify is playing in the top bar, with the current line of its synced lyrics beside them. Lyrics come from LRCLIB; no Spotify login needed.",
+  "version": 1,
+  "version-name": "1.0.0",
+  "shell-version": ["45", "46", "47", "48", "49"],
+  "url": "https://github.com/melementi/SpotifyTaskbarWidget/tree/Ubuntu-Gnome-top-bar-version",
+  "settings-schema": "org.gnome.shell.extensions.spotify-top-bar-lyrics"
+}
