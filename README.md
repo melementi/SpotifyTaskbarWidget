@@ -8,7 +8,7 @@
 and running it should work, if it dosnt follow the stepts below.
 - its performance optimized, dosnt add any resource load on cpu, and dosnt require any maintance after innitial install.
 
-## Settings
+## Settings (if you want to tweak and custimize it yourself, not neccessary)
 
 Create `%LOCALAPPDATA%\SpotifyTaskbarWidget\config.json` to change these, then
 restart the widget:
