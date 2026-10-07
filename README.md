@@ -5,7 +5,7 @@
 - Displays current song bottom left on task bar with lyrics. 
 - Turn off widgets in task bar settings before install.
 - installing the Windows Installer (https://github.com/melementi/SpotifyTaskbarWidget/releases/tag/v1.1.1) and running it should work, if it dosnt follow the stepts below.
-- its performance optimized (0% CPU, <35 MB RAM), doesn't add any resource load, and doesn't require any maintenance after initial install.
+- its performance optimized (0%-0.2% CPU, 40-55 MB RAM), doesn't add any resource load, and doesn't require any maintenance after initial install.
 
 ## Settings (if you want to tweak and customize it yourself, not necessary)
 
