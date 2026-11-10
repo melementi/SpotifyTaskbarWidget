@@ -53,4 +53,15 @@ public sealed class LyricsCacheTests : IDisposable
 
         Assert.Null(new LyricsCache(directory).TryGet(Query));
     }
+
+    [Fact]
+    public void Locked_cache_file_is_a_miss()
+    {
+        var cache = new LyricsCache(directory);
+        cache.Put(Query, new LyricsResult(LyricsStatus.Synced, "[00:01.00] Line"));
+        var file = Path.Combine(directory, LyricsCache.KeyFor(Query) + ".json");
+        using var locked = new FileStream(file, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+
+        Assert.Null(cache.TryGet(Query));
+    }
 }

@@ -20,6 +20,15 @@ public partial class WidgetWindow : Window
     // Lands a tick just after a line's timestamp, so rounding never shows the old line again.
     private static readonly TimeSpan LineMargin = TimeSpan.FromMilliseconds(15);
 
+    // A lookup that could not reach LRCLIB is tried again while the same song is still on.
+    private static readonly TimeSpan[] RetryDelays =
+    [
+        TimeSpan.FromSeconds(5),
+        TimeSpan.FromSeconds(15),
+        TimeSpan.FromSeconds(30),
+        TimeSpan.FromSeconds(60),
+    ];
+
     private readonly PositionClock clock;
     private readonly LyricsProvider lyrics;
     private readonly TaskbarHost host;
@@ -102,27 +111,37 @@ public partial class WidgetWindow : Window
         try
         {
             await Task.Delay(LookupDelay, ct);
-            var result = await lyrics.GetAsync(query, ct);
-            if (ct.IsCancellationRequested) return;
-
-            switch (result.Status)
+            for (var attempt = 0; ; attempt++)
             {
-                case LyricsStatus.Synced:
-                    SetLyrics(new LyricTimeline(LrcParser.Parse(result.SyncedLyrics)), "");
-                    break;
-                case LyricsStatus.Instrumental:
-                    SetLyrics(null, "♪ Instrumental");
-                    break;
-                case LyricsStatus.NotFound:
-                    SetLyrics(null, "No synced lyrics");
-                    break;
-                default:
-                    SetLyrics(null, "Lyrics unavailable");
-                    break;
+                var result = await lyrics.GetAsync(query, ct);
+                if (ct.IsCancellationRequested) return;
+
+                switch (result.Status)
+                {
+                    case LyricsStatus.Synced:
+                        SetLyrics(new LyricTimeline(LrcParser.Parse(result.SyncedLyrics)), "");
+                        return;
+                    case LyricsStatus.Instrumental:
+                        SetLyrics(null, "♪ Instrumental");
+                        return;
+                    case LyricsStatus.NotFound:
+                        SetLyrics(null, "No synced lyrics");
+                        return;
+                }
+
+                SetLyrics(null, "Lyrics unavailable");
+                if (attempt >= RetryDelays.Length) return;
+                await Task.Delay(RetryDelays[attempt], ct);
             }
         }
         catch (OperationCanceledException)
         {
+        }
+        catch (Exception exception)
+        {
+            // Nothing awaits this task, so an error would otherwise vanish and leave the lyrics blank.
+            ErrorLog.Write("Lyrics", exception);
+            if (!ct.IsCancellationRequested) SetLyrics(null, "Lyrics unavailable");
         }
     }
 
@@ -189,9 +208,10 @@ public partial class WidgetWindow : Window
             image.Freeze();
             return image;
         }
-        catch (Exception exception) when (exception is NotSupportedException or FileFormatException)
+        catch (Exception)
         {
-            // Players can hand over artwork WPF cannot decode; the song and lyrics still matter more.
+            // Players can hand over artwork WPF cannot decode, and the decoder reports that with many
+            // exception types; the song and lyrics still matter more.
             return null;
         }
     }

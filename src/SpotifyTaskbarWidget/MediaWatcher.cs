@@ -13,11 +13,47 @@ public sealed class MediaWatcher(PositionClock clock)
     private readonly object gate = new();
     private readonly SemaphoreSlim publishing = new(1, 1);
     private GlobalSystemMediaTransportControlsSessionManager? manager;
-    private Session? session;
-    private string? trackKey;
-    private TimeSpan publishedDuration;
+    private Attachment? attached;
 
     public event Action<TrackSnapshot?>? TrackChanged;
+
+    // Everything known about one Spotify session. Windows raises its events on pool threads, and a call
+    // can still be in flight when Spotify is replaced; work that belongs to an older attachment is dropped.
+    private sealed class Attachment(MediaWatcher owner, Session session)
+    {
+        public Session Session => session;
+
+        // null marks "first track after attaching": its timeline report is current, so the clock must not be reset.
+        public string? TrackKey;
+        public TimeSpan PublishedDuration;
+
+        public void Subscribe()
+        {
+            session.MediaPropertiesChanged += OnMediaChanged;
+            session.PlaybackInfoChanged += OnPlaybackChanged;
+            session.TimelinePropertiesChanged += OnTimelineChanged;
+        }
+
+        public void Unsubscribe()
+        {
+            try
+            {
+                session.MediaPropertiesChanged -= OnMediaChanged;
+                session.PlaybackInfoChanged -= OnPlaybackChanged;
+                session.TimelinePropertiesChanged -= OnTimelineChanged;
+            }
+            catch (Exception)
+            {
+                // The session is already gone, and its events with it.
+            }
+        }
+
+        private void OnMediaChanged(Session sender, MediaPropertiesChangedEventArgs args) => _ = owner.PublishAsync(this);
+
+        private void OnPlaybackChanged(Session sender, PlaybackInfoChangedEventArgs args) => owner.OnPlaybackChanged(this);
+
+        private void OnTimelineChanged(Session sender, TimelinePropertiesChangedEventArgs args) => owner.OnTimelineChanged(this);
+    }
 
     public async Task StartAsync()
     {
@@ -28,42 +64,27 @@ public sealed class MediaWatcher(PositionClock clock)
 
     private void Attach()
     {
-        Session? current;
+        var found = FindSpotify();
+        Attachment? current;
         lock (gate)
         {
-            if (session is not null)
-            {
-                session.MediaPropertiesChanged -= OnMediaChanged;
-                session.PlaybackInfoChanged -= OnPlaybackChanged;
-                session.TimelinePropertiesChanged -= OnTimelineChanged;
-            }
-
-            session = manager!.GetSessions().FirstOrDefault(candidate =>
-                candidate.SourceAppUserModelId.Contains("Spotify", StringComparison.OrdinalIgnoreCase));
-            current = session;
-
-            if (current is not null)
-            {
-                current.MediaPropertiesChanged += OnMediaChanged;
-                current.PlaybackInfoChanged += OnPlaybackChanged;
-                current.TimelinePropertiesChanged += OnTimelineChanged;
-            }
+            attached?.Unsubscribe();
+            current = found is null ? null : new Attachment(this, found);
+            attached = current;
         }
 
         if (current is null)
         {
-            trackKey = "";
             clock.SetPlayback(false, 1.0, DateTimeOffset.UtcNow);
             TrackChanged?.Invoke(null);
             return;
         }
 
-        // null marks "first track after attaching": its timeline report is current, so the clock must not be reset.
-        trackKey = null;
         try
         {
-            SyncPlayback(current);
-            SyncTimeline(current);
+            current.Subscribe();
+            SyncPlayback(current.Session);
+            SyncTimeline(current.Session);
         }
         catch (Exception)
         {
@@ -72,14 +93,52 @@ public sealed class MediaWatcher(PositionClock clock)
         _ = PublishAsync(current);
     }
 
-    private void OnMediaChanged(Session sender, MediaPropertiesChangedEventArgs args) => _ = PublishAsync(sender);
-
-    private void OnPlaybackChanged(Session sender, PlaybackInfoChangedEventArgs args) => SyncPlayback(sender);
-
-    private void OnTimelineChanged(Session sender, TimelinePropertiesChangedEventArgs args)
+    private Session? FindSpotify()
     {
-        var duration = SyncTimeline(sender);
-        if (duration != publishedDuration) _ = PublishAsync(sender);
+        try
+        {
+            return manager!.GetSessions().FirstOrDefault(candidate =>
+                candidate.SourceAppUserModelId.Contains("Spotify", StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception)
+        {
+            // A session can disappear while the list is being read; SessionsChanged follows with the new list.
+            return null;
+        }
+    }
+
+    private bool IsCurrent(Attachment attachment)
+    {
+        lock (gate) return ReferenceEquals(attached, attachment);
+    }
+
+    private void OnPlaybackChanged(Attachment source)
+    {
+        if (!IsCurrent(source)) return;
+        try
+        {
+            SyncPlayback(source.Session);
+        }
+        catch (Exception)
+        {
+            // Spotify can exit between raising the event and answering; SessionsChanged then reports the idle state.
+        }
+    }
+
+    private void OnTimelineChanged(Attachment source)
+    {
+        if (!IsCurrent(source)) return;
+        try
+        {
+            var duration = SyncTimeline(source.Session);
+            bool changed;
+            lock (gate) changed = duration != source.PublishedDuration;
+            if (changed) _ = PublishAsync(source);
+        }
+        catch (Exception)
+        {
+            // As above: the session went away mid-call.
+        }
     }
 
     private void SyncPlayback(Session source)
@@ -99,33 +158,45 @@ public sealed class MediaWatcher(PositionClock clock)
         return duration;
     }
 
-    private async Task PublishAsync(Session source)
+    private async Task PublishAsync(Attachment source)
     {
         var changedAt = DateTimeOffset.UtcNow;
         await publishing.WaitAsync();
         try
         {
-            var properties = await source.TryGetMediaPropertiesAsync();
+            if (!IsCurrent(source)) return;
+
+            var properties = await source.Session.TryGetMediaPropertiesAsync();
             if (string.IsNullOrWhiteSpace(properties?.Title))
             {
-                trackKey = "";
+                lock (gate)
+                {
+                    if (!ReferenceEquals(attached, source)) return;
+                    source.TrackKey = "";
+                }
                 TrackChanged?.Invoke(null);
                 return;
             }
 
             var key = $"{properties.Artist}|{properties.Title}";
-            if (key != trackKey)
+            bool newTrack;
+            lock (gate)
             {
-                if (trackKey is not null) clock.Reset(changedAt);
-                trackKey = key;
+                if (!ReferenceEquals(attached, source)) return;
+                newTrack = source.TrackKey is not null && key != source.TrackKey;
+                source.TrackKey = key;
             }
+            if (newTrack) clock.Reset(changedAt);
 
-            publishedDuration = SyncTimeline(source);
+            var duration = SyncTimeline(source.Session);
+            lock (gate) source.PublishedDuration = duration;
+
             var thumbnail = await ReadAsync(properties.Thumbnail);
+            if (!IsCurrent(source)) return;
             TrackChanged?.Invoke(new TrackSnapshot(
                 properties.Title,
                 properties.Artist,
-                publishedDuration,
+                duration,
                 thumbnail));
         }
         catch (Exception)

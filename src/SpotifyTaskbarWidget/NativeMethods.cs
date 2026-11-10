@@ -11,8 +11,12 @@ internal static class NativeMethods
     public const long WS_EX_NOACTIVATE = 0x08000000;
     public const long WS_EX_LAYOUTRTL = 0x00400000;
     public const uint SWP_NOACTIVATE = 0x0010;
+    public const long WS_EX_TRANSPARENT = 0x00000020;
+    public const uint MONITOR_DEFAULTTONULL = 0;
     public const uint MONITOR_DEFAULTTONEAREST = 2;
+    public const uint GW_HWNDNEXT = 2;
     public const uint GW_HWNDPREV = 3;
+    public const int DWMWA_CLOAKED = 14;
     public static readonly IntPtr HWND_TOPMOST = new(-1);
 
     [StructLayout(LayoutKind.Sequential)]
@@ -60,7 +64,21 @@ internal static class NativeMethods
     public static extern IntPtr GetWindow(IntPtr window, uint command);
 
     [DllImport("user32.dll")]
+    public static extern IntPtr GetTopWindow(IntPtr parent);
+
+    [DllImport("user32.dll")]
     public static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsWindowVisible(IntPtr window);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsIconic(IntPtr window);
+
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out int value, int size);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
