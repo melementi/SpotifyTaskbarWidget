@@ -81,4 +81,19 @@ public sealed class LyricsProviderTests : IDisposable
         Assert.Equal(LyricsStatus.Unavailable, failed.Status);
         Assert.Equal(LyricsStatus.Synced, recovered.Status);
     }
+
+    [Fact]
+    public async Task Lyrics_guessed_without_a_duration_are_not_cached()
+    {
+        var unknownLength = Query with { Duration = TimeSpan.Zero };
+        var (provider, handler) = Create(_ => FakeHandler.Json($"[{Hit}]"));
+
+        var first = await provider.GetAsync(unknownLength, CancellationToken.None);
+        var requestsAfterFirst = handler.Requests.Count;
+        await provider.GetAsync(unknownLength, CancellationToken.None);
+
+        Assert.Equal(LyricsStatus.Synced, first.Status);
+        Assert.False(Directory.Exists(directory) && Directory.EnumerateFiles(directory).Any());
+        Assert.True(handler.Requests.Count > requestsAfterFirst);
+    }
 }

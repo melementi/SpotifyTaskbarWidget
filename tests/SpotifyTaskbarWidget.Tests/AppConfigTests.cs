@@ -41,6 +41,37 @@ public sealed class AppConfigTests : IDisposable
     }
 
     [Fact]
+    public void Quoted_numbers_comments_and_trailing_commas_are_accepted()
+    {
+        File.WriteAllText(path, """
+            {
+              // show lyrics a little early
+              "lyricOffsetMs": "300",
+              "maxWidth": "500",
+            }
+            """);
+
+        Assert.Equal(new AppConfig(300, 500), AppConfig.Load(path));
+    }
+
+    [Fact]
+    public void Wrong_value_type_gives_defaults()
+    {
+        File.WriteAllText(path, """{ "lyricOffsetMs": true }""");
+
+        Assert.Equal(new AppConfig(0, 620), AppConfig.Load(path));
+    }
+
+    [Fact]
+    public void Locked_file_gives_defaults()
+    {
+        File.WriteAllText(path, """{ "lyricOffsetMs": 300 }""");
+        using var locked = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+
+        Assert.Equal(new AppConfig(0, 620), AppConfig.Load(path));
+    }
+
+    [Fact]
     public void Corrupt_file_gives_defaults()
     {
         File.WriteAllText(path, "{ lyricOffsetMs: oops");
