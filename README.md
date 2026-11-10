@@ -32,7 +32,7 @@
 
 4. The app is not code-signed, so Windows may show **"Windows protected your PC"** the first time. Click **More info > Run anyway**. If Smart App Control is on (Windows Security > App & browser control), Windows blocks unsigned apps like this one and offers no way to run it.
 
-The download contains everything the widget needs; you do not need to install .NET.
+The download contains everything the widget needs; you do not need to install .NET. Each release is built from the source by GitHub Actions and lists the zip's SHA-256 hash, so you can check your download with `Get-FileHash`.
 
 **To update:** download the new zip and run the same commands again. They stop the running widget first, then replace it. Your settings and cached lyrics are kept.
 
@@ -105,6 +105,11 @@ Windows 11 has no API for adding widgets to the taskbar, so the widget is a smal
 ## Disclaimer
 
 This is an unofficial hobby project. It is not affiliated with, endorsed by or connected to Spotify AB. Lyrics are provided by LRCLIB and its contributors.
+
+## Changes and security
+
+- What changed in each release: [CHANGELOG.md](CHANGELOG.md).
+- Found a security problem? See [SECURITY.md](SECURITY.md).
 
 ## License
 

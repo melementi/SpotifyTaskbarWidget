@@ -1,0 +1,64 @@
+name: Release
+
+# Push a tag such as v1.2.0 to build, test and publish a release. The tag must match <Version> in
+# src/SpotifyTaskbarWidget/SpotifyTaskbarWidget.csproj, and CHANGELOG.md must have a "## 1.2.0" section.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Check the tag matches the project version
+        shell: pwsh
+        run: |
+          $version = ([xml](Get-Content src/SpotifyTaskbarWidget/SpotifyTaskbarWidget.csproj)).Project.PropertyGroup.Version
+          if ("v$version" -ne $env:GITHUB_REF_NAME) { throw "Tag $env:GITHUB_REF_NAME does not match project version $version" }
+
+      - name: Test
+        run: dotnet test -c Release
+
+      - name: Publish
+        run: dotnet publish src/SpotifyTaskbarWidget -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=none -o artifacts/win-x64
+
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          $widget = Start-Process artifacts/win-x64/SpotifyTaskbarWidget.exe -PassThru
+          Start-Sleep 15
+          if ($widget.HasExited) { throw "The widget exited after start with code $($widget.ExitCode)" }
+          Stop-Process $widget
+          $log = "$env:LOCALAPPDATA\SpotifyTaskbarWidget\error.log"
+          if (Test-Path $log) { Get-Content $log; throw "The widget logged errors" }
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $zip = 'SpotifyTaskbarWidget-win-x64.zip'
+          Compress-Archive artifacts/win-x64/* $zip
+          "$((Get-FileHash $zip -Algorithm SHA256).Hash.ToLower())  $zip" | Out-File "$zip.sha256" -Encoding ascii
+
+      - name: Write release notes
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          $changelog = Get-Content CHANGELOG.md -Raw
+          $match = [regex]::Match($changelog, "(?ms)^## $([regex]::Escape($version))\b[^\n]*\n(.*?)(?=^## |\z)")
+          if (-not $match.Success) { throw "CHANGELOG.md has no section for $version" }
+          $install = "**Install or update:** download ``SpotifyTaskbarWidget-win-x64.zip`` below and run the PowerShell commands in the [README](https://github.com/melementi/SpotifyTaskbarWidget#install). The same commands update an existing install; they stop the running widget first.`n`nThe zip holds the widget exe plus the few native libraries it needs; no .NET install is required. Its SHA-256 hash is in ``SpotifyTaskbarWidget-win-x64.zip.sha256``. This release was built from the tagged source by the [Release workflow](https://github.com/melementi/SpotifyTaskbarWidget/actions/workflows/release.yml)."
+          "$install`n`n## Changes`n`n$($match.Groups[1].Value.Trim())" | Out-File release-notes.md -Encoding utf8
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: gh release create $env:GITHUB_REF_NAME SpotifyTaskbarWidget-win-x64.zip SpotifyTaskbarWidget-win-x64.zip.sha256 --title "Windows widget $env:GITHUB_REF_NAME" --notes-file release-notes.md
