@@ -22,8 +22,9 @@ public sealed class LyricsCache(string directory)
         {
             return JsonSerializer.Deserialize<LyricsResult>(File.ReadAllText(path));
         }
-        catch (JsonException)
+        catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException)
         {
+            // An unreadable entry is a miss; the lyrics are fetched again.
             return null;
         }
     }
