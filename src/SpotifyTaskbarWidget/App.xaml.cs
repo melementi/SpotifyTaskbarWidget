@@ -16,6 +16,33 @@ public partial class App : System.Windows.Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        // One bad album cover or an unexpected Windows error must not take the widget down until the next sign-in.
+        DispatcherUnhandledException += (_, args) =>
+        {
+            ErrorLog.Write("UI", args.Exception);
+            args.Handled = true;
+        };
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            ErrorLog.Write("Task", args.Exception);
+            args.SetObserved();
+        };
+
+        try
+        {
+            await StartAsync();
+        }
+        catch (Exception exception)
+        {
+            // This method is async void: an exception escaping it would end the process without a trace.
+            ErrorLog.Write("Startup", exception);
+            exiting = true;
+            Shutdown();
+        }
+    }
+
+    private async Task StartAsync()
+    {
         // The widget is a small layered window; GPU rendering would copy every frame back to system memory
         // and keep the graphics driver loaded, which costs more than drawing it on the CPU.
         RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;

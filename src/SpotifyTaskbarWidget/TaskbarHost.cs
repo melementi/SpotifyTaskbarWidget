@@ -92,24 +92,54 @@ internal sealed class TaskbarHost(Window window, int maxWidth)
         var foreground = GetForegroundWindow();
         if (foreground == IntPtr.Zero || foreground == hwnd || foreground == taskbar) return false;
 
-        GetClassName(foreground, classNameBuffer, classNameBuffer.Capacity);
-        var name = classNameBuffer.ToString();
-        // The desktop and Task View span the whole monitor but keep the taskbar visible.
-        if (name is "Progman" or "WorkerW" or "XamlExplorerHostIslandWindow") return false;
+        var monitor = MonitorFromWindow(taskbar, MONITOR_DEFAULTTONEAREST);
+        // With the focus on another monitor, a fullscreen video or game can still be covering this one.
+        var candidate = MonitorFromWindow(foreground, MONITOR_DEFAULTTONEAREST) == monitor
+            ? foreground
+            : TopWindowOn(monitor, taskbar);
+        if (candidate == IntPtr.Zero) return false;
 
-        var monitor = MonitorFromWindow(foreground, MONITOR_DEFAULTTONEAREST);
-        if (monitor != MonitorFromWindow(taskbar, MONITOR_DEFAULTTONEAREST)) return false;
+        // The desktop and Task View span the whole monitor but keep the taskbar visible.
+        if (ClassNameOf(candidate) is "Progman" or "WorkerW" or "XamlExplorerHostIslandWindow") return false;
 
         var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
-        GetMonitorInfo(monitor, ref info);
+        if (!GetMonitorInfo(monitor, ref info)) return false;
         // An auto-hiding taskbar reserves no space at the bottom, so maximized windows reach it too.
         var autoHide = info.rcWork.Bottom == info.rcMonitor.Bottom;
-        if (autoHide && IsZoomed(foreground)) return false;
+        if (autoHide && IsZoomed(candidate)) return false;
 
-        GetWindowRect(foreground, out var rect);
+        if (!GetWindowRect(candidate, out var rect)) return false;
         return rect.Left <= info.rcMonitor.Left
             && rect.Top <= info.rcMonitor.Top
             && rect.Right >= info.rcMonitor.Right
             && rect.Bottom >= info.rcMonitor.Bottom;
+    }
+
+    // The highest ordinary application window on the monitor. Overlays, tool windows and hidden
+    // (cloaked) windows are skipped: they sit above everything without covering anything.
+    private IntPtr TopWindowOn(IntPtr monitor, IntPtr taskbar)
+    {
+        const int limit = 512;
+        var seen = 0;
+        for (var window = GetTopWindow(IntPtr.Zero); window != IntPtr.Zero && seen < limit; window = GetWindow(window, GW_HWNDNEXT), seen++)
+        {
+            if (window == hwnd || window == taskbar) continue;
+            if (!IsWindowVisible(window) || IsIconic(window)) continue;
+
+            var style = GetWindowLongPtr(window, GWL_EXSTYLE).ToInt64();
+            if ((style & (WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TRANSPARENT)) != 0) continue;
+            if (DwmGetWindowAttribute(window, DWMWA_CLOAKED, out var cloaked, sizeof(int)) == 0 && cloaked != 0) continue;
+            if (MonitorFromWindow(window, MONITOR_DEFAULTTONULL) != monitor) continue;
+
+            return window;
+        }
+        return IntPtr.Zero;
+    }
+
+    private string ClassNameOf(IntPtr target)
+    {
+        // The buffer is reused between calls, so a failed call must not leave the previous window's name in it.
+        classNameBuffer.Clear();
+        return GetClassName(target, classNameBuffer, classNameBuffer.Capacity) > 0 ? classNameBuffer.ToString() : "";
     }
 }
