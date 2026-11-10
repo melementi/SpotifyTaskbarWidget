@@ -14,9 +14,12 @@ The application respects user privacy and operates with minimal data collection 
     *   Track Title
     *   Artist Name
     *   Track Duration (in seconds)
+
+    As with any web request, LRCLIB also sees the IP address the request comes from and a `User-Agent` header naming the widget and its version.
 *   **No Authentication Required:** The application does not require a Spotify login, OAuth token, or any API keys. It reads media information directly from the local Windows media controls (`GlobalSystemMediaTransportControlsSessionManager`).
 *   **Local Storage:**
     *   Settings are stored locally in `%LOCALAPPDATA%\SpotifyTaskbarWidget\config.json`.
+    *   Unexpected errors are written to `%LOCALAPPDATA%\SpotifyTaskbarWidget\error.log`. The file is capped in size, stays on the PC and is never transmitted.
     *   Downloaded lyrics are cached in `%LOCALAPPDATA%\SpotifyTaskbarWidget\lyrics`. The filenames in this cache are generated using a SHA256 hash of the track query (artist, title, and duration), which provides a mild layer of obfuscation, though the file contents are plain JSON containing the lyrics.
 
 ## Security
